@@ -12,6 +12,7 @@ class Scraper():
         self.URL = "https://www.myprotein.com/"
         self.brands_URL = []
         self.brands_list = ["protein", "bars", "clothing", "vitamins", "vegan", "creatine"]
+        self.products_list = {"protein": [], "bars": [], "clothing": [], "vitamins": [], "vegan": [], "creatine": []}
         self.driver.get(self.URL)
         self.delay = 10
 
@@ -19,6 +20,7 @@ class Scraper():
     def start_scraper(self):
        self.accept_cookies()
        self.get_brands_url()
+       self.get_products_link()
     
     # This function is accept cookies
     def accept_cookies(self):
@@ -68,6 +70,7 @@ class Scraper():
                         print()
 
                         if user_product_type.lower() == "n":
+                            print("PLEASE WAIT...")
                             break
                 
                 # Call function to get specific brand link and name
@@ -106,6 +109,54 @@ class Scraper():
             # Reject input if brand chosen already or not valid!
             print("This Product Is Already Selected or Not Valid")
 
+    # Save all url of products for each brand
+    def get_products_link(self):
+        for brand_index in range(len(self.brands_URL)):
+            self.driver.get(self.brands_URL[brand_index]["link"])
+            time.sleep(2)
+
+            # Extend the list of products
+            if self.brands_URL[brand_index]["brand"] == "vitamins" or self.brands_URL[brand_index]["brand"] == "vegan":
+                button = self.driver.find_element(By.XPATH, "//div[@class='sectionPeek_grid']/a")
+                link = button.get_attribute("href")
+                self.driver.get(link)
+                time.sleep(2)
+
+            try:
+                # Find how many pages are on the website
+                nav = self.driver.find_element(By.XPATH, "//nav[@aria-label='Pages Top']")
+                pages_count = nav.get_attribute("data-total-pages")
+                # Iterate through pages
+                self.pages_iteration(pages_count, brand_index)
+            except:
+                # Set page count to 1 if no pages
+                self.pages_iteration(1, brand_index)
+
+            
+    
+    def pages_iteration(self, pages_count, brand_index):
+        for i in range(int(pages_count)):
+            prop_container = self.driver.find_element(By.XPATH, "//ul[@class='productListProducts_products']")
+            prop_list = prop_container.find_elements(By.XPATH, "./li")
+            
+            # Getting all links and store in a list
+            for property in prop_list:
+                try:
+                    a_tag = property.find_element(By.TAG_NAME, "a")
+                    link = a_tag.get_attribute("href")
+                    self.products_list[self.brands_URL[brand_index]["brand"]].append(link)
+                except:
+                    continue
+            
+            # Checks if user on the last page
+            if (int(pages_count) - 1) == i:
+                continue
+            else:
+                WebDriverWait(self.driver, self.delay).until(EC.presence_of_element_located((By.XPATH, "//button[@title='Next page']")))
+
+                next_button = self.driver.find_element(By.XPATH, "//button[@title='Next page']")
+                next_button.click()
+                time.sleep(2)
 
 
 scraper = Scraper()
